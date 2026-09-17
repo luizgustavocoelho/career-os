@@ -1,0 +1,45 @@
+name: Quality and integration
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: careeros_test
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: careeros_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U careeros_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements.lock
+      - run: ruff check app tests && ruff format --check app tests migrations && pytest -q
+        working-directory: backend
+      - run: alembic upgrade head && alembic check
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://careeros_test:isolated-test-only@localhost:5432/careeros_test
+      - run: python tests/postgres_smoke.py
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://careeros_test:isolated-test-only@localhost:5432/careeros_test
+          REGISTRATION_LIMIT: '0'
+      - run: npm ci && npm run typecheck && npm run lint && npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: frontend/test-results
