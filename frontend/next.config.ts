@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
+
 const config: NextConfig = {
   output: "standalone",
+
+  allowedDevOrigins: (process.env.NEXT_ALLOWED_DEV_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+
   distDir: process.env.NEXT_DIST_DIR || ".next",
+
   async rewrites() {
     return [
       {
@@ -10,6 +18,7 @@ const config: NextConfig = {
       },
     ];
   },
+
   async headers() {
     return [
       {
@@ -23,4 +32,5 @@ const config: NextConfig = {
     ];
   },
 };
+
 export default config;

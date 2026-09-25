@@ -75,3 +75,13 @@ A senha é solicitada sem eco, ganha hash Argon2id e todas as sessões daquela c
 ## Linux/macOS
 
 O script `bash scripts/start-local.sh` prepara o venv, instala os locks, migra o banco e inicia os três processos. Ou substitua os executáveis Windows por `.venv/bin/python` nos comandos acima. Para E2E, rode `npx playwright install --with-deps chromium` dentro de frontend.
+
+## Compartilhamento temporário
+
+Instale `cloudflared` (`winget install --id Cloudflare.cloudflared`) e crie sua conta no modo local primeiro. Encerre a instância local e execute `scripts/start-share.ps1`. O script mostra uma URL HTTPS temporária, fecha cadastros, usa cookie Secure e configura o hostname exato do Next. As variáveis valem somente para os processos filhos; `.env` não é editado. Ctrl+C encerra os serviços/túnel. Depois use `scripts/start-local.ps1` para voltar a localhost.
+
+Quick Tunnels não são produção: sem SLA, limite de 200 requisições simultâneas, sem SSE, URL muda a cada execução; exige ausência de `~/.cloudflared/config.yml`/`config.yaml`. Não publica banco nem porta da API. Referência: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/
+
+A configuração Python localiza sempre o `.env` da raiz pelo caminho do código. Caminhos SQLite e DATA_DIR relativos são resolvidos a partir de `backend/`, inclusive ao iniciar de outro diretório. Variáveis de processo prevalecem. O script local aplica origem localhost e cookie sem Secure somente durante sua execução. `NEXT_ALLOWED_DEV_ORIGINS` recebe hostnames separados por vírgula, sem protocolo.
+
+Cada inicialização Windows faz backup SQLite consistente antes de migrations; cópias ficam em `data/backups`. Logs de cada execução ficam em `data/logs/<data-hora>`. Portas ocupadas e pré-requisitos ausentes interrompem o script sem encerrar processos existentes.

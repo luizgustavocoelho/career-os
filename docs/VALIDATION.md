@@ -28,3 +28,9 @@ Screenshots desktop (1280 px) e mobile (390 px) foram inspecionados visualmente;
 - Publicação remota e certificado HTTPS: não há servidor/domínio configurado.
 
 Warnings dos testes atuais: a versão instalada de Starlette informa depreciação do backend httpx de TestClient e do alias BlockingPortal de AnyIO. Não impedem os testes, mas devem ser acompanhados ao atualizar dependências.
+
+## Continuação — 25/09/2026
+
+Baseline antes da evolução: 29 testes backend, typecheck/lint frontend, build e 1 E2E aprovados. Build/E2E exigiram execução fora do sandbox devido a `spawn EPERM`. Após correção de configuração: 34 testes aprovados.
+
+CI hospedada consultada na API oficial GitHub: workflow [35250649767](https://github.com/luizgustavocoelho/career-os/actions/runs/35250649767), commit `e47feb7`, concluído com sucesso em 17/09/2026. Esse resultado cobre o commit inicial, não as mudanças locais posteriores.
