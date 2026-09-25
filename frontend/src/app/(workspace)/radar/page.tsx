@@ -79,6 +79,14 @@ export default function Radar() {
             />
             Favoritos
           </label>
+          <label className="checkbox-inline">
+            <input
+              type="checkbox"
+              checked={filters.archived === "true"}
+              onChange={(e) => set("archived", e.target.checked ? "true" : "")}
+            />
+            Arquivadas
+          </label>
         </div>
         {expanded && (
           <div className="form-grid filters-expanded">

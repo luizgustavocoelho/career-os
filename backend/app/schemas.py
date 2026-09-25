@@ -209,6 +209,15 @@ class CoachInput(Schema):
 class SourceInput(Schema):
     provider: Literal["greenhouse", "lever"]
     board: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,100}$")
+    enabled: bool = True
+
+
+class TitleInput(Schema):
+    title: str = Field(min_length=1, max_length=240)
+
+
+class ArchiveInput(Schema):
+    archived: bool
 
 
 class DocumentInput(Schema):

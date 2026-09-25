@@ -99,6 +99,52 @@ export default function Coach() {
               IA no Career DNA. Nenhuma resposta externa é simulada.
             </div>
           )}
+          {id && (
+            <div className="button-row">
+              <button
+                className="button"
+                disabled={busy}
+                onClick={async () => {
+                  const title = prompt(
+                    "Nome da conversa",
+                    conv.data?.find((c) => c.id === id)?.title,
+                  );
+                  if (!title) return;
+                  try {
+                    await api(`/coach/conversations/${id}`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ title }),
+                    });
+                    await conv.reload();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Renomear conversa
+              </button>
+              <button
+                className="button"
+                disabled={busy}
+                onClick={async () => {
+                  if (!confirm("Excluir esta conversa e suas mensagens?"))
+                    return;
+                  try {
+                    await api(`/coach/conversations/${id}`, {
+                      method: "DELETE",
+                    });
+                    setId(null);
+                    setMessages([]);
+                    await conv.reload();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Excluir conversa
+              </button>
+            </div>
+          )}
           <div className="chat-messages">
             {messages.length ? (
               messages.map((m, i) => (

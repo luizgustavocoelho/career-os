@@ -14,7 +14,7 @@ from app.models import (
     Notification,
     ProfileSkill,
 )
-from app.schemas import CoachInput
+from app.schemas import CoachInput, TitleInput
 from app.security import current_user, owned
 from app.serializers import serialize
 from app.services.analytics import gaps, overview, refresh_notifications, usage_summary
@@ -90,6 +90,26 @@ def history(conversation_id: str, user=Depends(current_user), db: Session = Depe
             .limit(200)
         )
     ]
+
+
+@router.patch("/coach/conversations/{conversation_id}")
+def rename_conversation(
+    conversation_id: str,
+    body: TitleInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    row = owned(db, AIConversation, conversation_id, user.id)
+    row.title = body.title
+    return serialize(row)
+
+
+@router.delete("/coach/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: str, user=Depends(current_user), db: Session = Depends(get_db)
+):
+    db.delete(owned(db, AIConversation, conversation_id, user.id))
+    return {"deleted": True}
 
 
 @router.post("/coach")

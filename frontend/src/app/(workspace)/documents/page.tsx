@@ -129,6 +129,36 @@ export default function Documents() {
                   Baixar
                 </a>
               </div>
+              <div className="button-row">
+                {current.applications?.map((a) => (
+                  <Link key={a.id} href={`/jobs/${a.job_id}`}>
+                    Vinculado: {a.title}
+                  </Link>
+                ))}
+                <button
+                  className="button"
+                  disabled={busy || !!current.applications?.length}
+                  onClick={async () => {
+                    if (
+                      !confirm(
+                        "Excluir esta vers�o? Documentos vinculados e vers�es com descendentes s�o protegidos.",
+                      )
+                    )
+                      return;
+                    try {
+                      await api(`/documents/${current.id}`, {
+                        method: "DELETE",
+                      });
+                      setCurrent(null);
+                      await reload();
+                    } catch (e) {
+                      setFailure((e as Error).message);
+                    }
+                  }}
+                >
+                  Excluir vers�o n�o utilizada
+                </button>
+              </div>
               {current.extracted?.warnings.map((w, i) => (
                 <div className="notice" key={i}>
                   {w}

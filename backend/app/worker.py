@@ -59,7 +59,7 @@ def run_once():
                         JobSource.id == task.payload["source_id"], JobSource.user_id == user.id
                     )
                 )
-                if not source:
+                if not source or not source.enabled:
                     raise ValueError("Fonte removida")
                 for data in PROVIDERS[source.provider].list_jobs(source.board):
                     job, created = save_job(db, user.id, data)

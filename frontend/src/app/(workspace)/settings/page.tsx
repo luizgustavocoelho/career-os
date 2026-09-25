@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
-import { dateTime, post } from "@/lib/api";
+import { api, put, dateTime, post } from "@/lib/api";
 import { Badge, ErrorBox, Field, Heading, useLoad } from "@/components/ui";
 type Source = {
+  enabled: boolean;
   id: string;
   provider: string;
   board: string;
@@ -109,7 +110,7 @@ export default function Settings() {
               </div>
               <button
                 className="button"
-                disabled={busy}
+                disabled={busy || !s.enabled}
                 onClick={async () => {
                   setError("");
                   try {
@@ -122,6 +123,61 @@ export default function Settings() {
               >
                 <RefreshCw size={15} />
                 Sincronizar
+              </button>
+              <button
+                className="button"
+                onClick={async () => {
+                  try {
+                    await put(`/sources/${s.id}`, {
+                      provider: s.provider,
+                      board: s.board,
+                      enabled: !s.enabled,
+                    });
+                    await sources.reload();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                {s.enabled ? "Desativar" : "Ativar"}
+              </button>
+              <button
+                className="button"
+                onClick={async () => {
+                  const board = prompt("Identificador da empresa", s.board);
+                  if (!board) return;
+                  try {
+                    await put(`/sources/${s.id}`, {
+                      provider: s.provider,
+                      board,
+                      enabled: s.enabled,
+                    });
+                    await sources.reload();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Editar
+              </button>
+              <button
+                className="button"
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Remover fonte? As vagas importadas ser�o preservadas.",
+                    )
+                  )
+                    return;
+                  try {
+                    await api(`/sources/${s.id}`, { method: "DELETE" });
+                    await sources.reload();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Remover
               </button>
             </div>
           ))}

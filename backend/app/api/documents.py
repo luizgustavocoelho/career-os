@@ -7,7 +7,7 @@ from app.ai.provider import parse_resume
 from app.config import settings
 from app.db import get_db
 from app.domain.parsers import local_resume, pdf_text
-from app.models import Document
+from app.models import Application, Document, Job
 from app.schemas import DocumentInput
 from app.security import current_user, owned
 from app.serializers import serialize
@@ -18,7 +18,10 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 @router.get("")
 def listing(user=Depends(current_user), db: Session = Depends(get_db)):
     return [
-        serialize(d, exclude=("text", "extracted"))
+        {
+            **serialize(d, exclude=("text", "extracted")),
+            "applications": references(db, user.id, d.id),
+        }
         for d in db.scalars(
             select(Document)
             .where(Document.user_id == user.id)
@@ -66,7 +69,34 @@ def create(body: DocumentInput, user=Depends(current_user), db: Session = Depend
 
 @router.get("/{document_id}")
 def detail(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
-    return serialize(owned(db, Document, document_id, user.id))
+    return {
+        **serialize(owned(db, Document, document_id, user.id)),
+        "applications": references(db, user.id, document_id),
+    }
+
+
+def references(db, user_id, document_id):
+    return [
+        {"id": a.id, "job_id": a.job_id, "title": j.title}
+        for a, j in db.execute(
+            select(Application, Job)
+            .join(Job, Job.id == Application.job_id)
+            .where(Application.user_id == user_id, Application.resume_id == document_id)
+        )
+    ]
+
+
+@router.delete("/{document_id}")
+def remove(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+    doc = owned(db, Document, document_id, user.id)
+    if references(db, user.id, doc.id) or db.scalar(
+        select(Document.id).where(Document.parent_id == doc.id)
+    ):
+        raise HTTPException(
+            409, "Documento vinculado a candidatura ou versão derivada. Preserve o histórico."
+        )
+    db.delete(doc)
+    return {"deleted": True}
 
 
 @router.post("/{document_id}/extract")

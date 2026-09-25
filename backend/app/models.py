@@ -103,6 +103,7 @@ class JobSource(Owned, Base):
     provider: Mapped[str] = mapped_column(String(40))
     board: Mapped[str] = mapped_column(String(120))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     __table_args__ = (UniqueConstraint("user_id", "provider", "board"),)
 
 
@@ -126,6 +127,8 @@ class Job(Owned, Base):
     score: Mapped[float | None] = mapped_column(Float, index=True)
     classification: Mapped[str | None] = mapped_column(String(40), index=True)
     coverage: Mapped[float | None] = mapped_column(Float)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    provenance: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
 
 
 class JobRequirement(Owned, Base):

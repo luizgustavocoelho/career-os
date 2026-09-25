@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { ArrowUpRight, MapPin, Star } from "lucide-react";
 import { Job, MODES, PRIORITIES, STATES } from "@/lib/types";
-import { date, post } from "@/lib/api";
+import { api, date, post } from "@/lib/api";
 import { Badge, Score } from "./ui";
 export function JobCard({
   job,
@@ -63,6 +63,47 @@ export function JobCard({
           <small>Cobertura: {job.coverage}%</small>
         </div>
       )}
+      <div className="button-row">
+        <button
+          className="text-button"
+          onClick={async () => {
+            try {
+              await api(`/jobs/${job.id}/archive`, {
+                method: "PATCH",
+                body: JSON.stringify({ archived: !job.archived_at }),
+              });
+              onUpdate?.();
+            } catch (e) {
+              alert((e as Error).message);
+            }
+          }}
+        >
+          {job.archived_at ? "Restaurar vaga" : "Arquivar vaga"}
+        </button>
+        {job.archived_at && (
+          <button
+            className="text-button"
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Excluir permanentemente esta vaga, candidatura e todo o hist�rico? Esta a��o n�o pode ser desfeita.",
+                )
+              )
+                return;
+              try {
+                await api(`/jobs/${job.id}?confirm=${job.id}`, {
+                  method: "DELETE",
+                });
+                onUpdate?.();
+              } catch (e) {
+                alert((e as Error).message);
+              }
+            }}
+          >
+            Excluir permanentemente
+          </button>
+        )}
+      </div>
     </article>
   );
 }

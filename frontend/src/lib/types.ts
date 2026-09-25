@@ -108,6 +108,7 @@ export type Application = {
   updated_at: string;
 };
 export type Job = JobData & {
+  archived_at: string | null;
   classification: string | null;
   coverage: number | null;
   id: string;
@@ -187,6 +188,7 @@ export type JobPage = {
   per_page: number;
 };
 export type Document = {
+  applications?: { id: string; job_id: string; title: string }[];
   id: string;
   name: string;
   kind: string;

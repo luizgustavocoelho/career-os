@@ -23,7 +23,7 @@ from app.models import (
     Note,
     Task,
 )
-from app.schemas import JobData, ParseInput, SourceInput, UrlInput
+from app.schemas import ArchiveInput, JobData, ParseInput, SourceInput, UrlInput
 from app.security import current_user, owned
 from app.serializers import serialize
 from app.services.career import ai_context, analyze, latest_analysis, save_job
@@ -66,6 +66,7 @@ def listing(
     skill: str = "",
     status: str = "",
     favorite: bool = False,
+    archived: bool = False,
     min_score: float | None = None,
     min_salary: float | None = None,
     since: datetime | None = None,
@@ -78,7 +79,11 @@ def listing(
     query = (
         select(Job, Application)
         .join(Application, Application.job_id == Job.id)
-        .where(Job.user_id == user.id, Application.user_id == user.id)
+        .where(
+            Job.user_id == user.id,
+            Application.user_id == user.id,
+            Job.archived_at.is_not(None) if archived else Job.archived_at.is_(None),
+        )
     )
     for column, value in ((Job.company, company), (Job.location, location)):
         if value:
@@ -267,7 +272,11 @@ def add_source(body: SourceInput, user=Depends(current_user), db: Session = Depe
 
 @router.post("/sources/{source_id}/sync", status_code=202)
 def sync(source_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
-    owned(db, JobSource, source_id, user.id)
+    from fastapi import HTTPException
+
+    source = owned(db, JobSource, source_id, user.id)
+    if not source.enabled:
+        raise HTTPException(409, "Ative a fonte antes de sincronizar.")
     tasks = db.scalars(
         select(Task).where(
             Task.user_id == user.id, Task.kind == "sync", Task.status.in_(["pending", "running"])
@@ -295,3 +304,56 @@ def tasks(user=Depends(current_user), db: Session = Depends(get_db)):
 @router.get("/analyses/{analysis_id}")
 def audit(analysis_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
     return serialize(owned(db, MatchAnalysis, analysis_id, user.id))
+
+
+@router.patch("/jobs/{job_id}/archive")
+def archive(
+    job_id: str, body: ArchiveInput, user=Depends(current_user), db: Session = Depends(get_db)
+):
+    from app.domain.pipeline import event
+    from app.models import now
+
+    job = owned(db, Job, job_id, user.id)
+    if bool(job.archived_at) != body.archived:
+        job.archived_at = now() if body.archived else None
+        app = db.scalar(
+            select(Application).where(Application.job_id == job.id, Application.user_id == user.id)
+        )
+        event(
+            db,
+            app,
+            "archived" if body.archived else "restored",
+            "Vaga arquivada" if body.archived else "Vaga restaurada",
+        )
+    return serialize(job)
+
+
+@router.delete("/jobs/{job_id}")
+def remove_job(
+    job_id: str, confirm: str, user=Depends(current_user), db: Session = Depends(get_db)
+):
+    from fastapi import HTTPException
+
+    job = owned(db, Job, job_id, user.id)
+    if confirm != job.id or not job.archived_at:
+        raise HTTPException(
+            409, "Arquive primeiro e confirme o ID para excluir a vaga e todo seu histórico."
+        )
+    db.delete(job)
+    return {"deleted": True}
+
+
+@router.put("/sources/{source_id}")
+def edit_source(
+    source_id: str, body: SourceInput, user=Depends(current_user), db: Session = Depends(get_db)
+):
+    source = owned(db, JobSource, source_id, user.id)
+    for key, value in body.model_dump().items():
+        setattr(source, key, value)
+    return serialize(source)
+
+
+@router.delete("/sources/{source_id}")
+def remove_source(source_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+    db.delete(owned(db, JobSource, source_id, user.id))
+    return {"deleted": True}
