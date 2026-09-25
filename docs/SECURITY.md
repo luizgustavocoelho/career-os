@@ -28,8 +28,15 @@ A prevenção de prompt injection usa separação de instruções/contexto e aus
 
 Não há analytics de terceiros no código do produto nem envio automático do perfil ao provedor. O Next pode emitir telemetria da ferramenta durante desenvolvimento; os containers definem `NEXT_TELEMETRY_DISABLED=1`. O provedor de IA processa o contexto quando o usuário solicita uma operação com consentimento, conforme [AI.md](AI.md).
 
-Dados no disco não recebem criptografia de aplicação. Use criptografia do dispositivo/volume, backup cifrado e TLS em produção. Restrinja acesso ao `.env`, banco e dumps. Controle de exclusão/exportação integral de conta pela UI e políticas de retenção automatizadas são trabalho futuro para disponibilização pública, não dependências do uso pessoal local.
+Dados no disco não recebem criptografia de aplicação. Use criptografia do dispositivo/volume, backup cifrado e TLS em produção. Restrinja acesso ao `.env`, banco e dumps. A exportação ZIP privada e exclusões por registro estão disponíveis. Exclusão integral de conta e políticas automatizadas de retenção permanecem no roadmap SaaS.
 
 ## Operação
 
 Antes de publicar: HTTPS ativo, cadastros configurados, senha forte, segredo exclusivo no banco, backup testado, portas privadas, dependências verificadas e smoke do fluxo. Não registre `.env` ou dados pessoais no Git. `npm audit` e atualização de locks devem fazer parte da manutenção.
+
+
+## Novas superfícies
+
+Arquivamento, fontes, buscas, documentos e conversas mantêm ownership/CSRF. Jooble recebe somente os termos/localização da busca; sua chave regional permanece no backend, com URL omitida dos logs HTTP. ZIP usa nomes baseados em UUID e allowlist de tabelas, excluindo sessões, hashes de senha e configuração. Exports e backups contêm dados pessoais: mantenha-os fora do Git e proteja o dispositivo.
+
+HTML exportado escapa conteúdo e não contém scripts. DOCX não contém macros, objetos ou relações externas. O túnel temporário exige autenticação normal, HTTPS/cookie Secure e cadastro fechado por padrão; expõe o servidor de desenvolvimento, não equivale a implantação de produção.

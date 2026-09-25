@@ -31,10 +31,21 @@ As entidades privadas carregam `user_id`; cada leitura e mutação recebe o usu�
 
 ## Concorrência e jobs
 
-Perfil e candidatura usam comparação de versão, retornando 409 em conflito. A timeline é append-only pela API. Mudar estado e criar os eventos acontece na mesma transação. A fila usa lease de dez minutos renovado entre registros, `FOR UPDATE SKIP LOCKED` no PostgreSQL e até três tentativas. Jobs idempotentes usam dedupe de vaga/cache de análise; interrupção permite retomar. Não há scheduler oculto para consultar sites: o usuário dispara a sincronização e o worker a processa.
+Perfil e candidatura usam comparação de versão, retornando 409 em conflito. A timeline é append-only pela API. Mudar estado e criar os eventos acontece na mesma transação. A fila usa lease de dez minutos renovado entre registros, `FOR UPDATE SKIP LOCKED` no PostgreSQL e até três tentativas. Jobs idempotentes usam dedupe de vaga/cache de análise; interrupção permite retomar. Buscas salvas optam por execução manual ou cadências de 12/24/48/168 horas. O scheduler persistente usa next_run_at, advisory lock PostgreSQL e Task.active_key único; SQLite requer um worker. Falhas usam available_at e backoff, inclusive Retry-After/quotas do provider. Contadores e checkpoints sobrevivem a reinício.
 
 O recálculo é enfileirado ao alterar DNA, skills ou evidências; scores antigos ficam nulos até recálculo. A análise histórica permanece disponível para auditoria. O botão Recalcular também executa imediatamente.
 
 ## Escala
 
 Índices em usuário, datas, chaves externas, skills, score e status; radar com paginação e limite de página. Kanban mostra até 60 registros por página e informa isso. Analytics do usuário agregam sua amostra em memória nesta versão; migração para agregações SQL/materializadas é indicada antes de dezenas de milhares de vagas por usuário. Documentos têm limite de 8 MB/40 páginas e são armazenados no banco para garantir posse e backup simples.
+
+
+## Personal Ready v1
+
+JobProvider continua atendendo boards Greenhouse/Lever; SearchJobProvider oferece busca ampla Jooble normalizada em JobData. Hosts são fixos, redirects proibidos e respostas limitadas a 5 MB. A fila original permanece; não há Redis/Celery.
+
+Ingestão é serializada por proprietário no PostgreSQL. Fingerprint, URL canônica e identidade externa resolvem duplicatas exatas; título/empresa/local e descrição substancialmente igual resolvem algumas duplicatas entre providers. Proveniência permanece em jobs.provenance. Isso é conservador: anúncios ambíguos podem continuar separados.
+
+Exports ZIP usam allowlist explícita por usuário. DOCX é OOXML de uma coluna produzido pela biblioteca padrão; HTML escapado permite impressão/PDF no navegador. Não exige Word/LibreOffice em produção. A seleção de fatos usa índices do DNA e valida sua versão antes de produzir o currículo.
+
+Migração offline usa snapshot SQLite e uma transação PostgreSQL com locks de escrita nas tabelas. Dry-run insere dentro da transação para validar constraints e depois faz rollback; não altera o destino permanentemente. Não é uma sincronização entre bancos ativos.

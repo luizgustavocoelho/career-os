@@ -1,36 +1,48 @@
-# Registro de validação
+# Validação — Personal Ready v1
 
-Validações realizadas em 16–17/09/2026.
+Executada em 25/09/2026, com dados de teste separados do SQLite pessoal.
 
-## Executado
+## Resultados locais
 
-- Duas migrations aplicadas em SQLite e PostgreSQL 18 reais; `alembic check` sem divergência em ambos.
-- TypeScript validado com `tsc --noEmit`.
-- Build otimizado Next.js concluído, com todas as rotas geradas.
-- Testes Python de domínio/API/contratos/regressão em banco isolado: 29 aprovados.
-- Verificação de isolamento entre duas contas, CSRF, origem, upload PDF real, cache/validação de IA, pipeline e worker.
-- `npm audit` na instalação: zero vulnerabilidades reportadas.
-- Smoke PostgreSQL 18 em cluster exclusivo na porta 55432: cadastro, vaga/score, pipeline, analytics e execução do worker aprovados.
-- Concorrência PostgreSQL: duas tentativas de cadastro para uma única posição restante resultaram em 201 e 403, preservando o limite configurado.
-- Sintaxe PowerShell e YAML de Compose/CI validadas.
-- Lint do frontend sem erros ou warnings; Ruff sem erros e código formatado.
+| Verificação | Resultado |
+|---|---|
+| Backend `pytest -q` | **56 passed, 2 warnings in 5.36s** |
+| Ruff lint | All checks passed |
+| Ruff format | 55 arquivos formatados corretamente |
+| TypeScript | `tsc --noEmit` aprovado |
+| ESLint | aprovado |
+| Next.js produção | build concluído e rotas geradas |
+| Playwright | **4 passed (48.5s)**: dois fluxos, cada um repetido duas vezes |
+| SQLite | quatro migrations aplicadas; `alembic check` sem divergência |
+| PostgreSQL 18 nativo isolado | migrations, `alembic check`, smoke de API/worker e concorrência de cadastro aprovados |
+| Portabilidade em PostgreSQL real | dry-run revertido, apply, repetição idempotente, conflito rejeitado, UUID/datetime/binários/linhagem/histórico preservados |
+| Scheduler concorrente PostgreSQL | dois workers: uma única execução concluída |
+| DOCX | ZIP/XML válidos; python-docx abriu 22 parágrafos do documento de QA |
+| HTML e ZIP pessoal | respostas/downloads verificados em API e E2E; isolamento por usuário e exclusão de credenciais testados |
+| Inicialização PowerShell | API, worker e frontend iniciados; backup automático e limpeza dos filhos verificados |
 
-## Teste de navegador
+O E2E original cobre conta, DNA, evidência, PDF, revisão manual, vaga, score, currículo, candidatura, mensagens, entrevista, kanban, timeline e persistência. O segundo cobre busca salva, fila/worker, importação automática, arquivar/restaurar, follow-up, currículo seletivo, DOCX, HTML, ZIP e Radar mobile. O provider substituto existe exclusivamente no servidor de testes.
 
-Playwright com Chrome: **1 fluxo E2E aprovado**, usando frontend/backend reais e banco migrado isolado. Inclui criação de conta, edição do DNA, evidência, PDF real, extração e correção manual, importação por descrição, score, currículo vinculado, candidatura, mensagem editada/envio registrado, entrevista/roteiro, alteração no kanban, timeline, persistência após refresh, logout e novo login. Não houve erros JavaScript de página.
+Screenshots desktop/mobile foram inspecionados. O Radar foi ajustado para separar opções do formulário em telas estreitas. Artefatos em `frontend/test-results` contêm somente fixtures e não são versionados.
 
-Screenshots desktop (1280 px) e mobile (390 px) foram inspecionados visualmente; dark mode e ausência de overflow horizontal em mobile foram verificados. Os arquivos locais ficam em `frontend/test-results/dashboard-desktop.png` e `dashboard-mobile.png` e mostram **somente fixtures do teste**, separadas do banco do usuário. Esses artefatos não são versionados.
+Uma repetição revelou resposta HTTP de sucesso antes do commit: a atualização seguinte podia ler estado anterior. A sessão de banco passou a usar `Depends(get_db, scope="function")`, conforme a [documentação FastAPI](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/). Regressões verificam commit antes dos headers e erro 409/rollback quando a confirmação falha. Não foi mascarado o problema com espera no navegador.
 
-## Não validado por dependência externa
+## Preservação do banco pessoal
 
-- Chamada paga real da IA: não há credencial fornecida/configurada. O contrato usa provider substituído apenas em testes, e o caso sem chave é testado.
-- Containers nesta máquina: Docker ausente. PostgreSQL nativo foi validado separadamente; execução dos containers e certificado Caddy ainda exigem ambiente com Docker e domínio. CI hospedada foi configurada, não executada remotamente.
-- Publicação remota e certificado HTTPS: não há servidor/domínio configurado.
+Backup consistente em `data/backups/before-personal-ready-v1.db`, antes das migrations aditivas. Todas as colunas preexistentes foram comparadas por contagem e hash dos registros ordenados: **sem alteração dos dados preexistentes**. `quick_check` e `foreign_key_check` aprovados. Nenhum seed, reset ou downgrade foi executado. Cada início pelo script Windows também criou backup separado.
 
-Warnings dos testes atuais: a versão instalada de Starlette informa depreciação do backend httpx de TestClient e do alias BlockingPortal de AnyIO. Não impedem os testes, mas devem ser acompanhados ao atualizar dependências.
+## CI hospedada
 
-## Continuação — 25/09/2026
+A branch `astra/careeros-personal-ready` foi publicada sem alterar `main`. Execução da implementação: [36101889497](https://github.com/luizgustavocoelho/career-os/actions/runs/36101889497), SHA `05252a7`. **Concluída com sucesso**, incluindo PostgreSQL 17, Compose config e os dois E2E.
 
-Baseline antes da evolução: 29 testes backend, typecheck/lint frontend, build e 1 E2E aprovados. Build/E2E exigiram execução fora do sandbox devido a `spawn EPERM`. Após correção de configuração: 34 testes aprovados.
+O workflow executa lint/formatação/Pytest, PostgreSQL 17 em serviço isolado, migrations e testes de portabilidade/concorrência, validação Compose, typecheck/lint/build e Playwright. Não usa APIs pagas. O sucesso da [CI inicial](https://github.com/luizgustavocoelho/career-os/actions/runs/35250649767) em `e47feb7` é histórico e não foi usado como evidência das alterações atuais.
 
-CI hospedada consultada na API oficial GitHub: workflow [35250649767](https://github.com/luizgustavocoelho/career-os/actions/runs/35250649767), commit `e47feb7`, concluído com sucesso em 17/09/2026. Esse resultado cobre o commit inicial, não as mudanças locais posteriores.
+## Dependências externas e limites da validação
+
+- OpenAI: smoke manual executado, encerrou com mensagem de chave ausente. Nenhuma chamada paga real; contratos, cache, falhas e ausência de chave testados.
+- Jooble: adapter e HTTP 429/quotas/paginação/normalização testados com fixtures. Busca autenticada real depende de chave regional.
+- Docker: ausente nesta máquina. PostgreSQL nativo foi exercitado; Compose config passou na CI hospedada. Build/start dos containers de aplicação e Caddy/HTTPS não foram executados localmente.
+- cloudflared: ausente. Verificação de pré-requisito funcionou; túnel público e login via HTTPS temporário não foram exercitados.
+- LibreOffice: ausente. DOCX validado estruturalmente; tentativa de renderização não pôde produzir páginas para inspeção. Paginação em Word/LibreOffice e impressão/PDF pelo usuário permanecem sem validação visual.
+- Deploy: sem servidor/domínio configurados. Nenhuma infraestrutura foi contratada, provisionada ou publicada.
+- Warnings: duas depreciações Starlette/httpx/AnyIO no backend; avisos NO_COLOR/FORCE_COLOR nos processos do navegador. Não impedem as verificações.

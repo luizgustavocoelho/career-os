@@ -37,3 +37,10 @@ O CareerOS ajuda a decidir onde investir tempo, organizar candidaturas e prepara
 O dashboard prioriza completar objetivos/skills, rever follow-ups vencidos, consultar vagas e estudar gaps observados. Entrevistas próximas e agenda são calculadas a partir do banco. Não há atividade fictícia ou percentuais de exemplo no produto.
 
 “Matches fortes” conta a classificação de prioridade alta, que exige score e cobertura suficientes, não apenas uma nota alta com dados escassos. O radar apresenta classificação e cobertura separadamente. Mensagens registradas como enviadas renovam o prazo de follow-up quando a regra está ativa; uma resposta registrada entra nas estatísticas e cancela lembretes pendentes daquela conversa.
+
+
+## Uso diário Personal Ready v1
+
+Radar possui buscas persistidas, Jooble regional e agenda no worker. Importações geram score/classificação determinísticos, proveniência e notificações com contadores reais. Dashboard registra a última visita e oferece acesso a novas vagas e tarefas com falha, mantendo agenda/follow-ups/gaps existentes.
+
+Vagas podem ser arquivadas/restauradas; fontes podem ser editadas, desativadas e removidas. Documentos sem uso podem ser excluídos; referências e linhagem ficam protegidas. Conversas do Coach podem ser renomeadas/excluídas. Currículos oferecem seleção de experiências/projetos existentes, prévia, aprovação/versionamento e exportação DOCX/HTML para impressão. Configurações oferece diagnóstico e exportação ZIP dos dados do proprietário.

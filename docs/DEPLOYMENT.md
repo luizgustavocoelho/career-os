@@ -18,7 +18,7 @@ POSTGRES_PASSWORD=<senha-aleatoria-alfanumerica-longa>
 DOMAIN=carreira.seudominio.com
 ACME_EMAIL=voce@seudominio.com
 REGISTRATION_LIMIT=1
-REGISTRATION_ENABLED=true
+REGISTRATION_ENABLED=false
 OPENAI_API_KEY=<sua-chave-se-quiser-ativar-IA>
 AI_MODEL=gpt-4.1-mini
 AI_DAILY_LIMIT=30
@@ -35,7 +35,7 @@ docker compose -f compose.yaml -f compose.production.yaml ps
 curl --fail https://carreira.seudominio.com/api/health
 ```
 
-6. Cadastre a primeira conta imediatamente, habilite `REGISTRATION_ENABLED=false` no `.env` e recrie API/worker. Para evitar que terceiros abram a primeira conta antes de você, mantenha acesso ao domínio restrito no firewall até concluir o cadastro.
+6. Prefira criar a conta localmente e migrá-la para PostgreSQL antes de abrir o domínio. Se optar por cadastro inicial em produção, restrinja acesso no firewall, abra temporariamente o cadastro e feche-o imediatamente depois.
 7. Confira cadastro/login, upload, vaga manual, persistência após logout/login, worker, notificações e IA configurada.
 
 O arquivo de produção força HTTPS/cookies Secure na API. O backend falha na inicialização em produção se banco não for PostgreSQL, origem não for HTTPS ou cookie Secure estiver desligado. O frontend só publica sua porta em loopback; o acesso externo passa por Caddy.
@@ -86,6 +86,26 @@ A API de backup do SQLite gera uma cópia consistente mesmo com WAL. Para restau
 
 É possível usar PostgreSQL gerenciado e hospedar os dois containers em outra plataforma. Configure `DATABASE_URL` com TLS conforme o provedor, rode migrations como release command, mantenha worker e API com o mesmo banco e variáveis, e compile o frontend com `API_INTERNAL_URL` apontando à API. Cookies e CSRF dependem da origem pública correta. O caminho testável de referência é o Compose; configurações específicas de Vercel/Render/Neon não são alegadas como validadas nesta entrega.
 
-## Verificação desta máquina
+## Preflight e validação
 
-Docker não está instalado no ambiente usado nesta implementação. A sintaxe da configuração Compose foi validada, mas os containers não foram executados aqui. Uma instância nativa isolada de PostgreSQL 18 foi iniciada para validar migrations, API, worker e concorrência de cadastro, com resultado positivo. Os bancos PostgreSQL já existentes na máquina não foram utilizados nem alterados. A CI inclui PostgreSQL 17, migrations, smoke da API e E2E; execução remota depende de publicar o repositório em uma conta GitHub e disparar a workflow. Consulte [VALIDATION.md](VALIDATION.md).
+Antes de publicar: `scripts/check-production.ps1` (Windows) ou `sh scripts/check-production.sh` (Linux). O preflight consulta Compose sem imprimir configuração/segredos; valida domínio, senha, HTTPS, cookie Secure, cadastro fechado e portas privadas. Após subir a stack, use `-Live` / `--live` para verificar revisão Alembic no container e health HTTPS. O health da API exige a revisão atual, não apenas existência de uma tabela de versão.
+
+Docker não está instalado nesta máquina; nenhum container ou certificado foi executado localmente. PostgreSQL 18 nativo isolado passou em migrations, smoke, worker, migração real e scheduler concorrente. CI inicial hospedada passou; resultado da branch de evolução consta em [VALIDATION.md](VALIDATION.md). Não há domínio/servidor contratado ou provisionado nesta entrega.
+
+## Migrar SQLite para PostgreSQL
+
+1. Pare API e worker em ambas as instalações. Faça backup SQLite e `pg_dump` do destino.
+2. Aplique migrations até o mesmo head em ambos. Recomenda-se um PostgreSQL vazio, já migrado.
+3. Defina `MIGRATION_TARGET_URL` no ambiente do processo com a conexão PostgreSQL (inclua TLS conforme o provedor). Não passe senha como argumento da linha de comando e não versione a variável.
+4. Em `backend`, execute:
+
+```powershell
+..\.venv\Scripts\python.exe -m app.manage migrate-sqlite-to-postgres data/careeros.db --dry-run
+..\.venv\Scripts\python.exe -m app.manage migrate-sqlite-to-postgres data/careeros.db --apply
+```
+
+O padrão sem flags é dry-run. As contagens por tabela são exibidas sem valores dos registros. Dry-run cria um snapshot consistente, valida schema/constraints, tenta a cópia numa transação e a reverte. `--apply` confirma tudo somente após verificação linha a linha; conflitos abortam a transação. Repetir imediatamente uma cópia idêntica não duplica registros. Uma instalação que já evoluiu separadamente pode gerar conflitos legítimos; não há sobrescrita/merge automático.
+
+5. Aponte DATABASE_URL da instalação de destino para PostgreSQL, reinicie API/worker, faça login e confirme documentos, vagas e timeline. Preserve o SQLite original e seu backup até validar recuperação.
+
+A ferramenta usa memória proporcional aos dados por tabela; foi projetada para instalação pessoal. Backups, snapshot temporário e banco de destino incluem autenticação e documentos; proteja o disco. O arquivo SQLite original é aberto em modo somente leitura.

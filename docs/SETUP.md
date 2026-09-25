@@ -40,7 +40,7 @@ Abra http://localhost:3000. A API de desenvolvimento está em http://localhost:8
 
 ## Variáveis e diretórios
 
-A API lê `.env` da raiz quando executada em `backend`. Caminhos SQLite são relativos ao diretório do backend. Compose sobrescreve `DATABASE_URL` com a conexão PostgreSQL, preservando o `.env` local.
+A API lê `.env` da raiz por caminho absoluto, independentemente do diretório de execução. Caminhos SQLite relativos são resolvidos a partir de `backend/`. Compose sobrescreve `DATABASE_URL` com a conexão PostgreSQL, preservando o `.env` local.
 
 `REGISTRATION_LIMIT=1` é o padrão. Para permitir mais contas voluntariamente, use `0` e reinicie. `REGISTRATION_ENABLED=false` fecha todos os novos cadastros. Para ambiente acessível remotamente, configure HTTPS e cookies Secure conforme o deploy.
 
@@ -55,7 +55,7 @@ A API lê `.env` da raiz quando executada em `backend`. Caminhos SQLite são rel
 | IA retorna 403 do app | Salve o consentimento no Career DNA |
 | Falha validando IA | Confira modelo, chave, saldo da API e limite diário; a resposta externa não é simulada |
 | PDF sem texto | Use versão pesquisável ou cole o texto em novo documento; não há OCR |
-| URL não suportada | Cole a descrição e mantenha a URL original. Somente Greenhouse/Lever têm importação automática de vaga. |
+| URL não suportada | Cole a descrição e mantenha a URL original. URL direta suporta Greenhouse/Lever; buscas amplas usam a API Jooble configurada. |
 | Perfil alterado em outra janela | Recarregue para obter a versão atual antes de salvar |
 | Sessão inválida | Atualize a página ou entre novamente; o CSRF é renovado por sessão |
 | Porta ocupada | Feche a instância anterior antes de executar outra. Não inicie scripts duplicados. |
@@ -85,3 +85,14 @@ Quick Tunnels não são produção: sem SLA, limite de 200 requisições simult�
 A configuração Python localiza sempre o `.env` da raiz pelo caminho do código. Caminhos SQLite e DATA_DIR relativos são resolvidos a partir de `backend/`, inclusive ao iniciar de outro diretório. Variáveis de processo prevalecem. O script local aplica origem localhost e cookie sem Secure somente durante sua execução. `NEXT_ALLOWED_DEV_ORIGINS` recebe hostnames separados por vírgula, sem protocolo.
 
 Cada inicialização Windows faz backup SQLite consistente antes de migrations; cópias ficam em `data/backups`. Logs de cada execução ficam em `data/logs/<data-hora>`. Portas ocupadas e pré-requisitos ausentes interrompem o script sem encerrar processos existentes.
+
+
+## Configurar o Radar automático
+
+- **Jooble:** solicite chave para o Brasil em https://br.jooble.org/api/about. Defina `JOOBLE_API_KEY` e `JOOBLE_REGION=br` no `.env`, reinicie API/worker. Use `us` ou `pt` somente com a chave regional correspondente.
+- **Greenhouse / Lever:** em Configurações, adicione o identificador público de cada empresa. Ative a fonte. Buscas nesses providers filtram somente essas empresas, não todo o mercado.
+- Em Radar → Gerenciar buscas automáticas, informe nome, até três variações de palavras-chave, localização e providers. Salve como manual ou escolha 12/24/48/168 horas; use Executar busca para enfileirar imediatamente.
+- O computador e o worker precisam estar ativos. O scheduler retoma buscas vencidas após reinício. Fontes/buscas desativadas não iniciam novas consultas; uma chamada já em trânsito pode terminar.
+- Revise status e contadores no Radar e erros em Configurações. Um provider sem credencial retorna erro explícito, não vagas de demonstração.
+
+Jooble retorna trechos e salário em texto: salário numérico, moeda, período, publicação e modalidade desconhecidos não são inventados. Há no máximo duas páginas de 20 registros por termo. Quotas locais conservadoras: 10 chamadas/minuto, 100/24h e 2.000/30 dias por instalação, sem substituir limites contratuais da sua chave. Consulte [PROVIDERS.md](PROVIDERS.md).

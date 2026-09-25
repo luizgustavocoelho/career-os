@@ -41,7 +41,7 @@ Abra http://localhost:3000. O Compose inicia PostgreSQL, aplica migrations, inic
 3. Cadastre skills e associe evidências reais a elas.
 4. Adicione uma vaga por texto, cadastro manual ou URL pública Greenhouse/Lever. Revise os requisitos e salve.
 5. Consulte score, cobertura dos dados, requisitos, gaps e fontes de evidência.
-6. Prepare uma mensagem e uma versão textual do currículo. Registre quando tiver enviado a candidatura.
+6. Prepare uma mensagem e selecione experiências/projetos do DNA no currículo contextual. Revise, salve a versão e exporte DOCX ou HTML para impressão/PDF. Registre quando tiver enviado a candidatura.
 7. Acompanhe o pipeline e follow-ups. Agende entrevistas, prepare o roteiro e registre feedback.
 8. Use Career Gap e Analytics para observar sua própria amostra de oportunidades.
 
@@ -100,3 +100,27 @@ O E2E usa banco descartável separado e portas 3011/8011. No Windows usa Chrome 
 - [Validação realizada](docs/VALIDATION.md)
 
 Não há implantação em conta externa nem integração OAuth configurada por padrão. O caminho de produção usa PostgreSQL e HTTPS. Os dados SQLite locais não migram automaticamente para o banco do Compose.
+
+
+## Personal Ready v1
+
+No Radar, abra **Gerenciar buscas automáticas**. Configure termos, localização e execução manual ou a cada 12/24/48/168 horas. Jooble usa chave regional; Greenhouse/Lever pesquisam as empresas cadastradas. O worker importa, deduplica, calcula score e notifica com contadores reais. [Configuração dos providers](docs/PROVIDERS.md).
+
+Vagas podem ser arquivadas/restauradas; exclusão permanente exige confirmação. Configurações permite gerenciar fontes, consultar diagnóstico e exportar seus dados ZIP. Documentos vinculados a candidaturas ou versões derivadas ficam protegidos.
+
+Para acesso temporário externo, instale cloudflared e execute `scripts/start-share.ps1` depois de criar sua conta local. A URL HTTPS é temporária, o cadastro fica fechado e o `.env` permanece intacto. Não equivale a deploy de produção.
+
+Operação (em `backend`):
+
+```powershell
+..\.venv\Scripts\python.exe -m app.manage backup-sqlite ../data/backups/minha-copia.db
+..\.venv\Scripts\python.exe -m app.manage ai-smoke
+..\.venv\Scripts\python.exe -m app.manage check-migrations
+..\.venv\Scripts\python.exe -m app.manage migrate-sqlite-to-postgres data/careeros.db --dry-run
+```
+
+Migração requer destino PostgreSQL já migrado em `MIGRATION_TARGET_URL`; usa dry-run por padrão e só grava com `--apply`. Pare as duas instalações e faça backup primeiro. Veja [migração e preflight](docs/DEPLOYMENT.md).
+
+[Validação e limites desta entrega](docs/VALIDATION.md): os contratos não substituem teste externo com chave real, e Docker/Cloudflare dependem das ferramentas instaladas.
+
+Relatório da entrega: [Personal Ready v1](docs/PERSONAL_READY_REPORT.md), com checklist, testes executados e dependências externas pendentes.

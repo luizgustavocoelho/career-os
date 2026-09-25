@@ -59,3 +59,15 @@ Deduplicação usa usuário + fingerprint de empresa/título/local/descrição n
 SQLite local: `backend/data/careeros.db`. PostgreSQL do Compose: volume `postgres_data`. Testes de navegador: bancos `backend/data/e2e-<uuid>.db` independentes. Testes unitários: SQLite em memória. CI de integração: PostgreSQL `careeros_test` descartável.
 
 Não reutilize o `.env` de produção em testes. Veja o procedimento de backup e restauração em [DEPLOYMENT.md](DEPLOYMENT.md).
+
+
+## Migrations Personal Ready v1
+
+- `c301_personal_lifecycle`: `jobs.archived_at`, `jobs.provenance`, `job_sources.enabled` com valores iniciais compatíveis. Nenhuma linha existente é removida.
+- `c0c9f428dbf3`: `saved_job_searches`, `worker_heartbeats`, `dashboard_visits`; `tasks.available_at` e índice único anulável `active_key`.
+
+As novas migrations recusam downgrade destrutivo. Restaure um backup em outro banco para avaliar reversão. Foram verificadas em SQLite e PostgreSQL 18; a cópia pessoal local recebeu backup antes de atualização e todos os valores das colunas preexistentes foram comparados por hash e contagem.
+
+Arquivar registra evento e preserva analytics/timeline. Excluir uma vaga exige arquivamento anterior e confirmação do ID; remove sua candidatura e dependências. Documentos usados em candidatura ou com descendentes não podem ser excluídos. Remover uma busca/fonte preserva as vagas já coletadas.
+
+`migrate-sqlite-to-postgres` preserva UUIDs, datas, JSON, bytes e FKs, incluindo hashes de senha necessários ao login. Isso difere da exportação do usuário, que exclui material de autenticação. A repetição aceita linhas idênticas e rejeita diferenças ou colisões únicas sem sobrescrever dados. Pare as aplicações/worker de origem e destino; não use para mesclar instalações divergentes.

@@ -56,3 +56,14 @@ O limite diário é de chamadas, não de dinheiro. Configure também orçamento 
 - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [Responses API](https://developers.openai.com/api/reference/resources/responses/)
 - [SDK Python oficial](https://github.com/openai/openai-python)
+
+
+## Smoke manual
+
+No diretório `backend`:
+
+```powershell
+..\.venv\Scripts\python.exe -m app.manage ai-smoke
+```
+
+Faz uma única chamada pequena com o modelo configurado, schema `{status: "ok"}`, `store=False`, timeout de 30 segundos e sem retries. Não envia DNA nem documentos, não imprime chave nem corpo de erro externo e não roda no CI. É uma operação administrativa com consumo separado das quotas de usuário do aplicativo. O teste desta entrega encontrou chave ausente; nenhuma chamada paga real foi validada. Contratos, citações e funcionamento sem IA foram testados.
