@@ -24,6 +24,7 @@ from app.schemas import (
     InterviewInput,
     InterviewUpdate,
     MessageInput,
+    ResumeSelection,
     StatusInput,
     TextInput,
 )
@@ -321,14 +322,19 @@ def prepare(
 
 
 @router.post("/applications/{application_id}/resume")
-def resume(application_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def resume(
+    application_id: str,
+    body: ResumeSelection | None = None,
+    user=Depends(current_user),
+    db: Session = Depends(get_db),
+):
     app = owned(db, Application, application_id, user.id)
     job = owned(db, Job, app.job_id, user.id)
     row = Document(
         user_id=user.id,
         name=f"Currículo — {job.company}"[:240],
         kind="resume",
-        text=tailored_resume(db, user, job),
+        text=tailored_resume(db, user, job, body),
         parent_id=app.resume_id,
     )
     db.add(row)
@@ -336,6 +342,18 @@ def resume(application_id: str, user=Depends(current_user), db: Session = Depend
     app.resume_id = row.id
     event(db, app, "resume", "Versão contextualizada do currículo criada", {"document_id": row.id})
     return serialize(row)
+
+
+@router.post("/applications/{application_id}/resume-preview")
+def resume_preview(
+    application_id: str,
+    body: ResumeSelection,
+    user=Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    app = owned(db, Application, application_id, user.id)
+    job = owned(db, Job, app.job_id, user.id)
+    return {"text": tailored_resume(db, user, job, body), "parent_id": app.resume_id}
 
 
 @router.post("/applications/{application_id}/resume/{document_id}")

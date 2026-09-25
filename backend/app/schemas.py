@@ -112,7 +112,7 @@ class JobData(Schema):
     salary_min: float | None = Field(default=None, ge=0)
     salary_max: float | None = Field(default=None, ge=0)
     salary_currency: str = Field(default="BRL", max_length=10)
-    salary_period: Literal["month", "year", "hour"] = "month"
+    salary_period: Literal["month", "year", "hour", "unknown"] = "month"
     experience_months: int | None = Field(default=None, ge=0, le=960)
     education_level: int | None = Field(default=None, ge=0, le=5)
     requirements: list[Requirement] = Field(default_factory=list, max_length=100)
@@ -172,6 +172,10 @@ class FollowUpInput(UtcSchema):
     due_at: datetime
 
 
+class VisitInput(UtcSchema):
+    as_of: datetime
+
+
 class InterviewInput(UtcSchema):
     title: str = Field(min_length=1, max_length=240)
     scheduled_at: datetime
@@ -220,8 +224,33 @@ class ArchiveInput(Schema):
     archived: bool
 
 
+class SearchInput(Schema):
+    name: str = Field(min_length=1, max_length=160)
+    keywords: list[str] = Field(min_length=1, max_length=3)
+    location: str = Field(default="", max_length=240)
+    work_models: list[Literal["remote", "hybrid", "onsite"]] = Field(default_factory=list)
+    seniority: Literal["unknown", "intern", "junior", "mid", "senior", "lead"] = "unknown"
+    salary_min: float | None = Field(default=None, ge=0)
+    providers: list[Literal["jooble", "greenhouse", "lever"]] = Field(min_length=1, max_length=3)
+    enabled: bool = True
+    cadence_hours: Literal[12, 24, 48, 168] | None = None
+
+    @field_validator("keywords")
+    @classmethod
+    def terms(cls, values):
+        if any(not v.strip() or len(v) > 160 for v in values):
+            raise ValueError("Use de um a três termos, com até 160 caracteres cada.")
+        return list(dict.fromkeys(v.strip() for v in values))
+
+
 class DocumentInput(Schema):
     name: str = Field(min_length=1, max_length=240)
     kind: Literal["resume", "cover_letter", "note"] = "note"
     text: str = Field(min_length=1, max_length=60000)
     parent_id: str | None = None
+
+
+class ResumeSelection(Schema):
+    profile_version: int = Field(ge=1)
+    experiences: list[int] | None = Field(default=None, max_length=60)
+    projects: list[int] | None = Field(default=None, max_length=80)

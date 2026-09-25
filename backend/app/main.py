@@ -11,9 +11,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from app.api import applications, auth, documents, insights, jobs, profile
+from app.api import applications, auth, documents, insights, jobs, profile, searches
 from app.config import settings
 from app.db import SessionLocal
+from app.services.health import expected_revision
 
 log = logging.getLogger("careeros")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -27,7 +28,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="CareerOS API",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
     docs_url="/api/docs" if settings().environment != "production" else None,
 )
@@ -121,7 +122,9 @@ def health():
     try:
         with SessionLocal() as db:
             db.execute(text("SELECT 1"))
-            db.execute(text("SELECT version_num FROM alembic_version"))
+            revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            if revision != expected_revision():
+                raise RuntimeError("Migrations pending")
         return {"status": "ok", "database": "ok"}
     except Exception:
         return JSONResponse(
@@ -137,5 +140,6 @@ for router in (
     jobs.router,
     applications.router,
     insights.router,
+    searches.router,
 ):
     app.include_router(router, prefix="/api")

@@ -141,7 +141,7 @@ export default function Documents() {
                   onClick={async () => {
                     if (
                       !confirm(
-                        "Excluir esta vers�o? Documentos vinculados e vers�es com descendentes s�o protegidos.",
+                        "Excluir esta versão? Documentos vinculados e versões com descendentes são protegidos.",
                       )
                     )
                       return;
@@ -156,8 +156,22 @@ export default function Documents() {
                     }
                   }}
                 >
-                  Excluir vers�o n�o utilizada
+                  Excluir versão não utilizada
                 </button>
+              </div>
+              <div className="button-row">
+                <a
+                  className="button"
+                  href={`/api/documents/${current.id}/download?format=docx`}
+                >
+                  Exportar DOCX
+                </a>
+                <a
+                  className="button"
+                  href={`/api/documents/${current.id}/download?format=html`}
+                >
+                  HTML para impressão / PDF
+                </a>
               </div>
               {current.extracted?.warnings.map((w, i) => (
                 <div className="notice" key={i}>

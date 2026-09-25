@@ -34,6 +34,16 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://careeros_test:isolated-test-only@localhost:5432/careeros_test
           REGISTRATION_LIMIT: '0'
+      - run: python tests/postgres_portability.py
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://careeros_test:isolated-test-only@localhost:5432/careeros_test
+      - run: cp .env.example .env && docker compose -f compose.yaml -f compose.production.yaml config --quiet
+        env:
+          POSTGRES_PASSWORD: ciFixturePasswordLongEnough12345
+          DOMAIN: careeros.example.com
+          ACME_EMAIL: test@example.com
+          REGISTRATION_ENABLED: 'false'
       - run: npm ci && npm run typecheck && npm run lint && npm run build
         working-directory: frontend
       - run: npx playwright install --with-deps chromium && npm run test:e2e

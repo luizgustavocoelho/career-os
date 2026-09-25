@@ -272,6 +272,39 @@ class Task(Owned, Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime)
     result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(Text)
+    available_at: Mapped[datetime | None] = mapped_column(DateTime)
+    active_key: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
+
+
+class SavedJobSearch(Owned, Base):
+    __tablename__ = "saved_job_searches"
+    name: Mapped[str] = mapped_column(String(160))
+    keywords: Mapped[list] = mapped_column(JSON)
+    location: Mapped[str] = mapped_column(String(240), default="")
+    work_models: Mapped[list] = mapped_column(JSON, default=list)
+    seniority: Mapped[str] = mapped_column(String(40), default="unknown")
+    salary_min: Mapped[float | None] = mapped_column(Float)
+    providers: Mapped[list] = mapped_column(JSON)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    cadence_hours: Mapped[int | None] = mapped_column(Integer)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    last_status: Mapped[str | None] = mapped_column(String(30))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_result: Mapped[dict | None] = mapped_column(JSON)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
+class DashboardVisit(Owned, Base):
+    __tablename__ = "dashboard_visits"
+    __table_args__ = (UniqueConstraint("user_id"),)
+    visited_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
 class Notification(Owned, Base):

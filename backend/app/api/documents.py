@@ -112,10 +112,33 @@ def extract(document_id: str, user=Depends(current_user), db: Session = Depends(
 
 
 @router.get("/{document_id}/download")
-def download(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def download(
+    document_id: str,
+    format: str = "original",
+    user=Depends(current_user),
+    db: Session = Depends(get_db),
+):
     from urllib.parse import quote
 
     doc = owned(db, Document, document_id, user.id)
+    if format in {"docx", "html"}:
+        from app.services.document_formats import resume_docx, resume_html
+
+        content = resume_docx(doc.text) if format == "docx" else resume_html(doc.text)
+        return Response(
+            content,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            if format == "docx"
+            else "text/html; charset=utf-8",
+            headers={
+                "Content-Disposition": "attachment; filename*=UTF-8''"
+                + quote(doc.name + "." + format, safe=""),
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+                "Cache-Control": "no-store",
+            },
+        )
+    if format != "original":
+        raise HTTPException(422, "Formato suportado: original, docx ou html.")
     filename = doc.name if doc.content else doc.name.removesuffix(".pdf") + ".txt"
     return Response(
         content=doc.content if doc.content else doc.text.encode("utf-8"),

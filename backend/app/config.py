@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     ai_model: str = "gpt-4.1-mini"
     ai_daily_limit: int = 30
+    jooble_api_key: str = ""
+    jooble_region: Literal["br", "us", "pt"] = "br"
     upload_max_mb: int = 8
     data_dir: Path = Path("data")
 

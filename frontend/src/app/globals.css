@@ -508,6 +508,18 @@ pre {
   font-size: 12px;
   margin: 8px 0;
 }
+.saved-searches fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+  margin: 16px 0;
+}
+.saved-searches legend {
+  margin-bottom: 4px;
+}
+.saved-searches form {
+  margin-bottom: 20px;
+}
 .back-link {
   display: inline-flex;
   align-items: center;

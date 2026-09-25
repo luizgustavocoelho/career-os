@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { DashboardActions } from "@/components/diagnostics";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -29,7 +30,7 @@ import { dateTime } from "@/lib/api";
 export default function Dashboard() {
   const { user } = useSession();
   const stats = useLoad<Overview>("/dashboard");
-  const jobs = useLoad<JobPage>("/jobs?sort=score&per_page=3");
+  const jobs = useLoad<JobPage>("/jobs?sort=priority&per_page=3");
   const profile = useLoad<Profile>("/profile");
   const gaps = useLoad<Gap>("/gaps");
   if (!stats.data)
@@ -49,6 +50,7 @@ export default function Dashboard() {
           Adicionar oportunidade
         </Link>
       </Heading>
+      <DashboardActions />
       <div className="dashboard-top">
         <section className="focus-card">
           <div>

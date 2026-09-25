@@ -86,7 +86,7 @@ export function JobCard({
             onClick={async () => {
               if (
                 !confirm(
-                  "Excluir permanentemente esta vaga, candidatura e todo o hist�rico? Esta a��o n�o pode ser desfeita.",
+                  "Excluir permanentemente esta vaga, candidatura e todo o histórico? Esta ação não pode ser desfeita.",
                 )
               )
                 return;

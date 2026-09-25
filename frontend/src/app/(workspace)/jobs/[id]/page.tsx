@@ -643,6 +643,9 @@ export default function Workspace({
           </section>
           <section className="panel">
             <h3>Currículo da candidatura</h3>
+            <Link className="button full" href={`/jobs/${id}/resume`}>
+              Selecionar fatos e exportar currículo
+            </Link>
             <Field label="Documento utilizado">
               <select
                 value={app.resume_id || ""}

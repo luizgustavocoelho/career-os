@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { DiagnosticsPanel } from "@/components/diagnostics";
 import { RefreshCw } from "lucide-react";
 import { api, put, dateTime, post } from "@/lib/api";
 import { Badge, ErrorBox, Field, Heading, useLoad } from "@/components/ui";
@@ -49,6 +50,7 @@ export default function Settings() {
       <ErrorBox
         message={error || sources.error || tasks.error || status.error}
       />
+      <DiagnosticsPanel />
       <div className="settings-grid">
         <section className="panel">
           <h3>Fontes de oportunidades</h3>
@@ -165,7 +167,7 @@ export default function Settings() {
                 onClick={async () => {
                   if (
                     !confirm(
-                      "Remover fonte? As vagas importadas ser�o preservadas.",
+                      "Remover fonte? As vagas importadas serão preservadas.",
                     )
                   )
                     return;
@@ -249,7 +251,9 @@ export default function Settings() {
                     <td>
                       {t.kind === "sync"
                         ? "Sincronizar vagas"
-                        : "Recalcular scores"}
+                        : t.kind === "search"
+                          ? "Buscar oportunidades"
+                          : "Recalcular scores"}
                     </td>
                     <td>
                       <Badge
@@ -267,6 +271,7 @@ export default function Settings() {
                               pending: "Na fila",
                               running: "Executando",
                               completed: "Concluída",
+                              cancelled: "Cancelada",
                               failed: "Falhou",
                             } as Record<string, string>
                           )[t.status]

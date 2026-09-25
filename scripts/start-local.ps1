@@ -16,6 +16,8 @@ function Stop-OwnedProcess($Process) {
 }
 try {
     Set-Location -LiteralPath $projectRoot
+    Override-Environment 'PYTHONUTF8' '1'
+    Override-Environment 'PYTHONUNBUFFERED' '1'
     foreach ($tool in @('python', 'node', 'npm.cmd')) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool não encontrado. Instale Python 3.14 e Node.js 24, reabra o terminal e execute -Install." }
     }
@@ -89,6 +91,11 @@ try {
     if (-not $apiReady) { throw "API não iniciou. Logs: $logDir" }
     $frontend = Start-Process (Get-Command node).Source -ArgumentList 'node_modules/next/dist/bin/next','dev','--hostname','127.0.0.1' -WorkingDirectory (Join-Path $projectRoot 'frontend') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logDir 'frontend.log') -RedirectStandardError (Join-Path $logDir 'frontend-error.log')
     $children += $frontend
+    $webReady = $false
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        try { $null = Invoke-WebRequest 'http://127.0.0.1:3000/login' -TimeoutSec 2 -UseBasicParsing; $webReady = $true; break } catch { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $webReady) { throw "Frontend não iniciou. Logs: $logDir" }
     Write-Host "CareerOS: $publicOrigin"
     Write-Host "Ctrl+C encerra os serviços e o túnel desta execução. Logs: $logDir"
     while ($true) {

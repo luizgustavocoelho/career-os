@@ -1,7 +1,7 @@
-from tests.conftest import account
 from sqlalchemy import select
 
 from app.models import AIConversation, AIMessage, JobSource, Task
+from tests.conftest import account
 
 
 def test_archive_restore_preserves_timeline(client, user, vacancy):
@@ -61,3 +61,37 @@ def test_coach_lifecycle_and_ownership(client, user, database):
     assert client.delete(path).status_code == 404
     assert client.patch(path, json={"title": "Inválida"}).status_code == 404
 
+
+def test_new_surfaces_require_owner_and_csrf(client, user, vacancy):
+    from tests.conftest import account
+
+    job = client.post("/api/jobs", json=vacancy).json()
+    source = client.post("/api/sources", json={"provider": "lever", "board": "fixture"}).json()
+    doc = client.post("/api/documents", json={"name": "private", "text": "private text"}).json()
+    csrf = client.headers.pop("X-CSRF-Token")
+    assert (
+        client.patch(f"/api/jobs/{job['id']}/archive", json={"archived": True}).status_code == 403
+    )
+    client.headers["X-CSRF-Token"] = csrf
+    account(client, "lifecycle-other@example.com")
+    assert (
+        client.patch(f"/api/jobs/{job['id']}/archive", json={"archived": True}).status_code == 404
+    )
+    assert client.delete(f"/api/sources/{source['id']}").status_code == 404
+    assert client.delete(f"/api/documents/{doc['id']}").status_code == 404
+    assert client.get(f"/api/documents/{doc['id']}/download?format=docx").status_code == 404
+
+
+def test_owner_can_delete_conversation_and_messages(client, user, database):
+    with database() as db:
+        row = AIConversation(user_id=user["id"], title="Delete fixture")
+        db.add(row)
+        db.flush()
+        conversation_id = row.id
+        db.add(AIMessage(user_id=user["id"], conversation_id=row.id, role="user", body="Fixture"))
+        db.commit()
+    assert client.delete(f"/api/coach/conversations/{conversation_id}").status_code == 200
+    with database() as db:
+        assert (
+            db.scalar(select(AIMessage).where(AIMessage.conversation_id == conversation_id)) is None
+        )

@@ -10,11 +10,17 @@ from app.models import (
     AIMessage,
     Application,
     Contact,
+    DashboardVisit,
     Job,
+    JobSource,
     Notification,
     ProfileSkill,
+    SavedJobSearch,
+    Task,
+    WorkerHeartbeat,
+    now,
 )
-from app.schemas import CoachInput, TitleInput
+from app.schemas import CoachInput, TitleInput, VisitInput
 from app.security import current_user, owned
 from app.serializers import serialize
 from app.services.analytics import gaps, overview, refresh_notifications, usage_summary
@@ -23,10 +29,107 @@ from app.services.career import ai_context
 router = APIRouter(tags=["insights"])
 
 
+@router.get("/export")
+def export_data(user=Depends(current_user), db: Session = Depends(get_db)):
+    from fastapi.responses import Response
+
+    from app.services.export import export_zip
+
+    return Response(
+        export_zip(db, user),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=careeros-export.zip",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @router.get("/dashboard")
 @router.get("/analytics")
 def dashboard(user=Depends(current_user), db: Session = Depends(get_db)):
     return overview(db, user.id)
+
+
+@router.get("/dashboard/actions")
+def actions(user=Depends(current_user), db: Session = Depends(get_db)):
+    from sqlalchemy import func
+
+    visit = db.scalar(select(DashboardVisit).where(DashboardVisit.user_id == user.id))
+    as_of = now()
+    query = select(Job).where(
+        Job.user_id == user.id, Job.archived_at.is_(None), Job.created_at <= as_of
+    )
+    if visit:
+        query = query.where(Job.created_at > visit.visited_at)
+    count = db.scalar(select(func.count()).select_from(query.subquery()))
+    recent = db.scalars(query.order_by(Job.created_at.desc()).limit(5)).all()
+    return {
+        "new_since_visit": count,
+        "as_of": as_of.isoformat() + "Z",
+        "recent": [serialize(j, exclude=("description", "data")) for j in recent],
+        "failed_tasks": db.scalar(
+            select(func.count())
+            .select_from(Task)
+            .where(Task.user_id == user.id, Task.status == "failed")
+        ),
+    }
+
+
+@router.post("/dashboard/visited")
+def visited(body: VisitInput, user=Depends(current_user), db: Session = Depends(get_db)):
+    if body.as_of > now():
+        raise HTTPException(422, "Data da visita não pode estar no futuro.")
+    visit = db.scalar(select(DashboardVisit).where(DashboardVisit.user_id == user.id))
+    if not visit:
+        visit = DashboardVisit(user_id=user.id)
+        db.add(visit)
+    visit.visited_at = max(visit.visited_at, body.as_of) if visit.visited_at else body.as_of
+    return {"recorded": True}
+
+
+@router.get("/diagnostics")
+def diagnostics(user=Depends(current_user), db: Session = Depends(get_db)):
+    from datetime import timedelta
+
+    from sqlalchemy import text
+
+    from app.api.searches import providers
+
+    db.execute(text("SELECT 1"))
+    heartbeat = db.get(WorkerHeartbeat, "scheduler")
+    searches = db.scalars(select(SavedJobSearch).where(SavedJobSearch.user_id == user.id)).all()
+    sources = db.scalars(select(JobSource).where(JobSource.user_id == user.id)).all()
+    tasks = db.scalars(
+        select(Task)
+        .where(Task.user_id == user.id, Task.kind == "sync")
+        .order_by(Task.created_at.desc())
+    ).all()
+    source_details = []
+    for source in sources:
+        last_task = next(
+            (task for task in tasks if task.payload.get("source_id") == source.id), None
+        )
+        source_details.append(
+            {
+                **serialize(source),
+                "last_error": last_task.error if last_task else None,
+                "last_status": last_task.status if last_task else None,
+            }
+        )
+    return {
+        "version": "1.1.0-personal",
+        "environment": settings().environment,
+        "database": "ok",
+        "worker": {
+            "active": bool(heartbeat and heartbeat.updated_at > now() - timedelta(minutes=15)),
+            "last_activity": heartbeat.updated_at.isoformat() + "Z" if heartbeat else None,
+        },
+        "providers": providers(user),
+        "sources": source_details,
+        "searches": [serialize(s) for s in searches],
+        "ai": ai_status(user, db),
+    }
 
 
 @router.get("/gaps")

@@ -1,7 +1,7 @@
 import json
 
 from fastapi import HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select, text
 
 from app.domain.pipeline import event
 from app.domain.scoring import calculate
@@ -44,6 +44,11 @@ def skill_list(db, user_id):
 
 
 def save_job(db, user_id, data: JobData):
+    if db.bind.dialect.name == "postgresql":
+        # Serialize ingestion per owner through commit, including manual imports.
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:owner, 0))"), {"owner": user_id}
+        )
     raw = data.model_dump(mode="json")
     raw["url"] = canonical_url(raw.get("url")) or None
     fp = fingerprint(raw)
@@ -53,12 +58,41 @@ def save_job(db, user_id, data: JobData):
     if data.external_id:
         conditions.append((Job.source == data.source) & (Job.external_id == data.external_id))
     existing = db.scalar(select(Job).where(Job.user_id == user_id, or_(*conditions)))
+    origin = {"source": data.source, "external_id": data.external_id, "url": raw["url"]}
+    if not existing and data.company and data.location:
+        # Conservative cross-provider match: same identity and a substantial shared description.
+        from difflib import SequenceMatcher
+
+        candidates = db.scalars(
+            select(Job).where(
+                Job.user_id == user_id,
+                func.lower(Job.company) == data.company.lower(),
+                func.lower(Job.title) == data.title.lower(),
+            )
+        )
+        for candidate in candidates:
+            if normalize(candidate.location) != normalize(data.location):
+                continue
+            a, b = normalize(candidate.description), normalize(data.description)
+            if min(len(a), len(b)) >= 80 and (
+                a.startswith(b)
+                or b.startswith(a)
+                or SequenceMatcher(None, a[:6000], b[:6000]).ratio() >= 0.94
+            ):
+                existing = candidate
+                break
     if existing:
+        origins = existing.provenance or [
+            {"source": existing.source, "external_id": existing.external_id, "url": existing.url}
+        ]
+        if origin not in origins:
+            existing.provenance = [*origins, origin]
         return existing, False
     job = Job(
         user_id=user_id,
         fingerprint=fp,
         data=raw,
+        provenance=[origin],
         **{
             k: raw[k]
             for k in (
@@ -237,8 +271,11 @@ def ai_context(db, user, job=None):
     return {"sources": sources}
 
 
-def tailored_resume(db, user, job):
-    dna = get_profile(db, user).data
+def tailored_resume(db, user, job, selection=None):
+    profile = get_profile(db, user)
+    dna = profile.data
+    if selection and selection.profile_version != profile.version:
+        raise HTTPException(409, "O perfil mudou. Recarregue e revise a seleção.")
     required = {normalize(r["skill"]) for r in job.data.get("requirements", [])}
     skills = skill_list(db, user.id)
     ordered = sorted(skills, key=lambda s: normalize(s["name"]) not in required)
@@ -263,6 +300,23 @@ def tailored_resume(db, user, job):
         ("certifications", "CERTIFICAÇÕES"),
     ):
         entries = dna.get(field, [])
+        if selection and field in {"experiences", "projects"}:
+            indexes = getattr(selection, field)
+            if indexes is not None:
+                if any(i < 0 or i >= len(entries) for i in indexes):
+                    raise HTTPException(422, "Seleção de experiência/projeto inválida.")
+                entries = [entries[i] for i in dict.fromkeys(indexes)]
+        if field in {"experiences", "projects"}:
+            entries = sorted(
+                entries,
+                key=lambda item: (
+                    -sum(
+                        skill
+                        in normalize(item.get("title", "") + " " + item.get("description", ""))
+                        for skill in required
+                    )
+                ),
+            )
         if entries:
             lines += ["", label]
             for item in entries:

@@ -285,7 +285,12 @@ def sync(source_id: str, user=Depends(current_user), db: Session = Depends(get_d
     for t in tasks:
         if t.payload.get("source_id") == source_id:
             return serialize(t)
-    task = Task(user_id=user.id, kind="sync", payload={"source_id": source_id})
+    task = Task(
+        user_id=user.id,
+        kind="sync",
+        payload={"source_id": source_id},
+        active_key=f"sync:{source_id}",
+    )
     db.add(task)
     db.flush()
     return serialize(task)

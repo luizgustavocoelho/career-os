@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SavedSearches } from "@/components/saved-searches";
 import { useState } from "react";
 import { ListFilter, Plus, Search } from "lucide-react";
 import { JobCard } from "@/components/job-card";
@@ -43,6 +44,10 @@ export default function Radar() {
           Adicionar vaga
         </Link>
       </Heading>
+      <details className="panel">
+        <summary>Gerenciar buscas automáticas</summary>
+        <SavedSearches />
+      </details>
       <div className="panel filter-panel">
         <div className="filter-main">
           <div className="input-icon">
