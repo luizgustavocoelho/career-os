@@ -73,7 +73,7 @@ def create_session(db: Session, user: User, response: Response):
     return {"id": user.id, "name": user.name, "email": user.email, "csrf_token": csrf}
 
 
-def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
     token = request.cookies.get(COOKIE, "")
     session = db.scalar(
         select(SessionToken).where(

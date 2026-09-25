@@ -16,7 +16,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.get("")
-def listing(user=Depends(current_user), db: Session = Depends(get_db)):
+def listing(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return [
         {
             **serialize(d, exclude=("text", "extracted")),
@@ -32,7 +32,11 @@ def listing(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.post("/upload", status_code=201)
-def upload(file: UploadFile = File(...), user=Depends(current_user), db: Session = Depends(get_db)):
+def upload(
+    file: UploadFile = File(...),
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
     limit = settings().upload_max_mb * 1024 * 1024
     content = file.file.read(limit + 1)
     if len(content) > limit:
@@ -58,7 +62,9 @@ def upload(file: UploadFile = File(...), user=Depends(current_user), db: Session
 
 
 @router.post("", status_code=201)
-def create(body: DocumentInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def create(
+    body: DocumentInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     if body.parent_id:
         owned(db, Document, body.parent_id, user.id)
     doc = Document(user_id=user.id, **body.model_dump())
@@ -68,7 +74,9 @@ def create(body: DocumentInput, user=Depends(current_user), db: Session = Depend
 
 
 @router.get("/{document_id}")
-def detail(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def detail(
+    document_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     return {
         **serialize(owned(db, Document, document_id, user.id)),
         "applications": references(db, user.id, document_id),
@@ -87,7 +95,9 @@ def references(db, user_id, document_id):
 
 
 @router.delete("/{document_id}")
-def remove(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def remove(
+    document_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     doc = owned(db, Document, document_id, user.id)
     if references(db, user.id, doc.id) or db.scalar(
         select(Document.id).where(Document.parent_id == doc.id)
@@ -100,7 +110,9 @@ def remove(document_id: str, user=Depends(current_user), db: Session = Depends(g
 
 
 @router.post("/{document_id}/extract")
-def extract(document_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def extract(
+    document_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     doc = owned(db, Document, document_id, user.id)
     if len(doc.text) < 20:
         raise HTTPException(422, "O documento não contém texto suficiente para extração.")
@@ -116,7 +128,7 @@ def download(
     document_id: str,
     format: str = "original",
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     from urllib.parse import quote
 

@@ -30,12 +30,14 @@ def invalidate(db, user_id):
 
 
 @router.get("/profile")
-def get(user=Depends(current_user), db: Session = Depends(get_db)):
+def get(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return {**serialize(get_profile(db, user)), "skills": skill_list(db, user.id)}
 
 
 @router.put("/profile")
-def put(body: ProfileUpdate, user=Depends(current_user), db: Session = Depends(get_db)):
+def put(
+    body: ProfileUpdate, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     profile = get_profile(db, user)
     changed = db.execute(
         update(Profile)
@@ -52,7 +54,9 @@ def put(body: ProfileUpdate, user=Depends(current_user), db: Session = Depends(g
 
 
 @router.post("/profile/skills", status_code=201)
-def add_skill(body: SkillInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def add_skill(
+    body: SkillInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     normalized = normalize(body.name)
     skill = db.scalar(
         select(ProfileSkill).where(
@@ -70,7 +74,10 @@ def add_skill(body: SkillInput, user=Depends(current_user), db: Session = Depend
 
 @router.put("/profile/skills/{skill_id}")
 def edit_skill(
-    skill_id: str, body: SkillInput, user=Depends(current_user), db: Session = Depends(get_db)
+    skill_id: str,
+    body: SkillInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     skill = owned(db, ProfileSkill, skill_id, user.id)
     for key, value in body.model_dump().items():
@@ -81,7 +88,9 @@ def edit_skill(
 
 
 @router.delete("/profile/skills/{skill_id}")
-def delete_skill(skill_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def delete_skill(
+    skill_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     db.delete(owned(db, ProfileSkill, skill_id, user.id))
     invalidate(db, user.id)
     return {"ok": True}
@@ -89,7 +98,10 @@ def delete_skill(skill_id: str, user=Depends(current_user), db: Session = Depend
 
 @router.post("/profile/skills/{skill_id}/evidence", status_code=201)
 def evidence(
-    skill_id: str, body: EvidenceInput, user=Depends(current_user), db: Session = Depends(get_db)
+    skill_id: str,
+    body: EvidenceInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     owned(db, ProfileSkill, skill_id, user.id)
     item = Evidence(user_id=user.id, skill_id=skill_id, **body.model_dump())
@@ -100,7 +112,9 @@ def evidence(
 
 
 @router.delete("/profile/evidence/{evidence_id}")
-def delete_evidence(evidence_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def delete_evidence(
+    evidence_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     db.delete(owned(db, Evidence, evidence_id, user.id))
     invalidate(db, user.id)
     return {"ok": True}

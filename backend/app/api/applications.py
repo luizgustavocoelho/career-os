@@ -45,7 +45,7 @@ def status(
     application_id: str,
     body: StatusInput,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     change_status(
@@ -58,7 +58,10 @@ def status(
 
 @router.post("/applications/{application_id}/notes", status_code=201)
 def note(
-    application_id: str, body: TextInput, user=Depends(current_user), db: Session = Depends(get_db)
+    application_id: str,
+    body: TextInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     row = Note(user_id=user.id, application_id=app.id, body=body.body)
@@ -73,7 +76,7 @@ def contact(
     application_id: str,
     body: ContactInput,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     row = Contact(user_id=user.id, application_id=app.id, **body.model_dump(mode="json"))
@@ -89,7 +92,7 @@ def message(
     body: MessageInput,
     ai: bool = False,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     job = owned(db, Job, app.job_id, user.id)
@@ -137,7 +140,10 @@ def message(
 
 @router.put("/messages/{message_id}")
 def edit_message(
-    message_id: str, body: TextInput, user=Depends(current_user), db: Session = Depends(get_db)
+    message_id: str,
+    body: TextInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     row = owned(db, MessageDraft, message_id, user.id)
     if row.sent_at:
@@ -149,7 +155,9 @@ def edit_message(
 
 
 @router.post("/messages/{message_id}/sent")
-def sent(message_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def sent(
+    message_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     row = owned(db, MessageDraft, message_id, user.id)
     if not row.sent_at:
         row.sent_at = now()
@@ -183,7 +191,7 @@ def follow(
     application_id: str,
     body: FollowUpInput,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     row = schedule(db, app, body.due_at)
@@ -193,7 +201,10 @@ def follow(
 
 @router.post("/followups/{followup_id}/{action}")
 def follow_action(
-    followup_id: str, action: str, user=Depends(current_user), db: Session = Depends(get_db)
+    followup_id: str,
+    action: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     if action not in {"sent", "cancelled", "replied"}:
         raise HTTPException(422, "Ação inválida.")
@@ -233,7 +244,7 @@ def interview(
     application_id: str,
     body: InterviewInput,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     row = Interview(user_id=user.id, application_id=app.id, **body.model_dump())
@@ -254,7 +265,7 @@ def edit_interview(
     interview_id: str,
     body: InterviewUpdate,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     row = owned(db, Interview, interview_id, user.id)
     app = owned(db, Application, row.application_id, user.id)
@@ -274,7 +285,10 @@ def edit_interview(
 
 @router.post("/interviews/{interview_id}/prepare")
 def prepare(
-    interview_id: str, ai: bool = False, user=Depends(current_user), db: Session = Depends(get_db)
+    interview_id: str,
+    ai: bool = False,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     row = owned(db, Interview, interview_id, user.id)
     app = owned(db, Application, row.application_id, user.id)
@@ -326,7 +340,7 @@ def resume(
     application_id: str,
     body: ResumeSelection | None = None,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     job = owned(db, Job, app.job_id, user.id)
@@ -349,7 +363,7 @@ def resume_preview(
     application_id: str,
     body: ResumeSelection,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     job = owned(db, Job, app.job_id, user.id)
@@ -358,7 +372,10 @@ def resume_preview(
 
 @router.post("/applications/{application_id}/resume/{document_id}")
 def attach_resume(
-    application_id: str, document_id: str, user=Depends(current_user), db: Session = Depends(get_db)
+    application_id: str,
+    document_id: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     app = owned(db, Application, application_id, user.id)
     doc = owned(db, Document, document_id, user.id)

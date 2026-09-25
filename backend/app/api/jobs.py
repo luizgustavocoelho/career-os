@@ -33,7 +33,10 @@ router = APIRouter(tags=["jobs"])
 
 @router.post("/jobs/parse")
 def parse(
-    body: ParseInput, ai: bool = False, user=Depends(current_user), db: Session = Depends(get_db)
+    body: ParseInput,
+    ai: bool = False,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     result = parse_job(db, user.id, body.text) if ai else local_job(body.text)
     return {"data": result.model_dump(), "method": "ai" if ai else "local", "review_required": True}
@@ -49,7 +52,9 @@ def url(body: UrlInput, user=Depends(current_user)):
 
 
 @router.post("/jobs", status_code=201)
-def create(body: JobData, user=Depends(current_user), db: Session = Depends(get_db)):
+def create(
+    body: JobData, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     job, created = save_job(db, user.id, body)
     analysis = analyze(db, user, job)
     return {**serialize(job), "created": created, "analysis": analysis.result}
@@ -74,7 +79,7 @@ def listing(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     query = (
         select(Job, Application)
@@ -149,7 +154,9 @@ def listing(
 
 
 @router.get("/jobs/{job_id}")
-def detail(job_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def detail(
+    job_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     job = owned(db, Job, job_id, user.id)
     app = db.scalar(
         select(Application).where(Application.job_id == job.id, Application.user_id == user.id)
@@ -182,12 +189,17 @@ def detail(job_id: str, user=Depends(current_user), db: Session = Depends(get_db
 
 
 @router.post("/jobs/{job_id}/analyze")
-def score(job_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def score(job_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return serialize(analyze(db, user, owned(db, Job, job_id, user.id)), exclude=("snapshot",))
 
 
 @router.put("/jobs/{job_id}")
-def edit_job(job_id: str, body: JobData, user=Depends(current_user), db: Session = Depends(get_db)):
+def edit_job(
+    job_id: str,
+    body: JobData,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
     from app.domain.pipeline import event
 
     job = owned(db, Job, job_id, user.id)
@@ -236,26 +248,32 @@ def edit_job(job_id: str, body: JobData, user=Depends(current_user), db: Session
 
 
 @router.post("/jobs/{job_id}/semantic")
-def semantic(job_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def semantic(
+    job_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     return analyze_match(
         db, user.id, ai_context(db, user, owned(db, Job, job_id, user.id))
     ).model_dump()
 
 
 @router.post("/jobs/{job_id}/favorite")
-def favorite_job(job_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def favorite_job(
+    job_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     job = owned(db, Job, job_id, user.id)
     job.favorite = not job.favorite
     return {"favorite": job.favorite}
 
 
 @router.get("/sources")
-def sources(user=Depends(current_user), db: Session = Depends(get_db)):
+def sources(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return [serialize(r) for r in db.scalars(select(JobSource).where(JobSource.user_id == user.id))]
 
 
 @router.post("/sources", status_code=201)
-def add_source(body: SourceInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def add_source(
+    body: SourceInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     row = db.scalar(
         select(JobSource).where(
             JobSource.user_id == user.id,
@@ -271,7 +289,9 @@ def add_source(body: SourceInput, user=Depends(current_user), db: Session = Depe
 
 
 @router.post("/sources/{source_id}/sync", status_code=202)
-def sync(source_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def sync(
+    source_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     from fastapi import HTTPException
 
     source = owned(db, JobSource, source_id, user.id)
@@ -297,7 +317,7 @@ def sync(source_id: str, user=Depends(current_user), db: Session = Depends(get_d
 
 
 @router.get("/tasks")
-def tasks(user=Depends(current_user), db: Session = Depends(get_db)):
+def tasks(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return [
         serialize(t)
         for t in db.scalars(
@@ -307,13 +327,18 @@ def tasks(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.get("/analyses/{analysis_id}")
-def audit(analysis_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def audit(
+    analysis_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     return serialize(owned(db, MatchAnalysis, analysis_id, user.id))
 
 
 @router.patch("/jobs/{job_id}/archive")
 def archive(
-    job_id: str, body: ArchiveInput, user=Depends(current_user), db: Session = Depends(get_db)
+    job_id: str,
+    body: ArchiveInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     from app.domain.pipeline import event
     from app.models import now
@@ -335,7 +360,10 @@ def archive(
 
 @router.delete("/jobs/{job_id}")
 def remove_job(
-    job_id: str, confirm: str, user=Depends(current_user), db: Session = Depends(get_db)
+    job_id: str,
+    confirm: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     from fastapi import HTTPException
 
@@ -350,7 +378,10 @@ def remove_job(
 
 @router.put("/sources/{source_id}")
 def edit_source(
-    source_id: str, body: SourceInput, user=Depends(current_user), db: Session = Depends(get_db)
+    source_id: str,
+    body: SourceInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     source = owned(db, JobSource, source_id, user.id)
     for key, value in body.model_dump().items():
@@ -359,6 +390,8 @@ def edit_source(
 
 
 @router.delete("/sources/{source_id}")
-def remove_source(source_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def remove_source(
+    source_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     db.delete(owned(db, JobSource, source_id, user.id))
     return {"deleted": True}

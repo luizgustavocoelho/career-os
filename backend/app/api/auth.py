@@ -21,7 +21,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/config")
-def config(db: Session = Depends(get_db)):
+def config(db: Session = Depends(get_db, scope="function")):
     cfg = settings()
     return {
         "registration_open": cfg.registration_enabled
@@ -30,7 +30,12 @@ def config(db: Session = Depends(get_db)):
 
 
 @router.post("/register", status_code=201)
-def register(body: AuthInput, request: Request, response: Response, db: Session = Depends(get_db)):
+def register(
+    body: AuthInput,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db, scope="function"),
+):
     throttle(db, "register:" + (request.client.host if request.client else "local"), 5)
     cfg = settings()
     if cfg.registration_limit:
@@ -56,7 +61,12 @@ def register(body: AuthInput, request: Request, response: Response, db: Session 
 
 
 @router.post("/login")
-def login(body: AuthInput, request: Request, response: Response, db: Session = Depends(get_db)):
+def login(
+    body: AuthInput,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db, scope="function"),
+):
     ip = request.client.host if request.client else "local"
     throttle(db, "login-ip:" + ip, 30)
     throttle(db, "login-email:" + str(body.email).lower(), 10)
@@ -80,7 +90,10 @@ def me(request: Request, user=Depends(current_user)):
 
 @router.post("/logout")
 def logout(
-    request: Request, response: Response, user=Depends(current_user), db: Session = Depends(get_db)
+    request: Request,
+    response: Response,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     db.delete(request.state.session)
     response.delete_cookie(COOKIE, path="/")

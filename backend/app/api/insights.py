@@ -30,7 +30,7 @@ router = APIRouter(tags=["insights"])
 
 
 @router.get("/export")
-def export_data(user=Depends(current_user), db: Session = Depends(get_db)):
+def export_data(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     from fastapi.responses import Response
 
     from app.services.export import export_zip
@@ -47,12 +47,12 @@ def export_data(user=Depends(current_user), db: Session = Depends(get_db)):
 
 @router.get("/dashboard")
 @router.get("/analytics")
-def dashboard(user=Depends(current_user), db: Session = Depends(get_db)):
+def dashboard(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return overview(db, user.id)
 
 
 @router.get("/dashboard/actions")
-def actions(user=Depends(current_user), db: Session = Depends(get_db)):
+def actions(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     from sqlalchemy import func
 
     visit = db.scalar(select(DashboardVisit).where(DashboardVisit.user_id == user.id))
@@ -77,7 +77,9 @@ def actions(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.post("/dashboard/visited")
-def visited(body: VisitInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def visited(
+    body: VisitInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     if body.as_of > now():
         raise HTTPException(422, "Data da visita não pode estar no futuro.")
     visit = db.scalar(select(DashboardVisit).where(DashboardVisit.user_id == user.id))
@@ -89,7 +91,7 @@ def visited(body: VisitInput, user=Depends(current_user), db: Session = Depends(
 
 
 @router.get("/diagnostics")
-def diagnostics(user=Depends(current_user), db: Session = Depends(get_db)):
+def diagnostics(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     from datetime import timedelta
 
     from sqlalchemy import text
@@ -133,12 +135,12 @@ def diagnostics(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.get("/gaps")
-def career_gap(user=Depends(current_user), db: Session = Depends(get_db)):
+def career_gap(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return gaps(db, user.id)
 
 
 @router.get("/notifications")
-def notifications(user=Depends(current_user), db: Session = Depends(get_db)):
+def notifications(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     refresh_notifications(db, user.id)
     return [
         serialize(n)
@@ -152,14 +154,18 @@ def notifications(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.post("/notifications/{notification_id}/read")
-def mark_read(notification_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def mark_read(
+    notification_id: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
     row = owned(db, Notification, notification_id, user.id)
     row.read = True
     return serialize(row)
 
 
 @router.get("/ai/status")
-def ai_status(user=Depends(current_user), db: Session = Depends(get_db)):
+def ai_status(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return {
         "configured": bool(settings().openai_api_key),
         "model": settings().ai_model,
@@ -169,7 +175,7 @@ def ai_status(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.get("/coach/conversations")
-def conversations(user=Depends(current_user), db: Session = Depends(get_db)):
+def conversations(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return [
         serialize(c)
         for c in db.scalars(
@@ -182,7 +188,11 @@ def conversations(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.get("/coach/conversations/{conversation_id}")
-def history(conversation_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def history(
+    conversation_id: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
     owned(db, AIConversation, conversation_id, user.id)
     return [
         serialize(m)
@@ -200,7 +210,7 @@ def rename_conversation(
     conversation_id: str,
     body: TitleInput,
     user=Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     row = owned(db, AIConversation, conversation_id, user.id)
     row.title = body.title
@@ -209,14 +219,18 @@ def rename_conversation(
 
 @router.delete("/coach/conversations/{conversation_id}")
 def delete_conversation(
-    conversation_id: str, user=Depends(current_user), db: Session = Depends(get_db)
+    conversation_id: str,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     db.delete(owned(db, AIConversation, conversation_id, user.id))
     return {"deleted": True}
 
 
 @router.post("/coach")
-def coach(body: CoachInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def coach(
+    body: CoachInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     conversation = (
         owned(db, AIConversation, body.conversation_id, user.id) if body.conversation_id else None
     )
@@ -249,7 +263,7 @@ def coach(body: CoachInput, user=Depends(current_user), db: Session = Depends(ge
 
 
 @router.get("/search")
-def search(q: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def search(q: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if len(q.strip()) < 2:
         return {"jobs": [], "contacts": [], "skills": []}
     jobs = db.scalars(

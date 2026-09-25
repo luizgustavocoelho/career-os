@@ -29,7 +29,7 @@ def providers(user=Depends(current_user)):
 
 
 @router.get("/saved-searches")
-def listing(user=Depends(current_user), db: Session = Depends(get_db)):
+def listing(user=Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return [
         serialize(s)
         for s in db.scalars(
@@ -41,7 +41,9 @@ def listing(user=Depends(current_user), db: Session = Depends(get_db)):
 
 
 @router.post("/saved-searches", status_code=201)
-def create(body: SearchInput, user=Depends(current_user), db: Session = Depends(get_db)):
+def create(
+    body: SearchInput, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     search = SavedJobSearch(
         user_id=user.id,
         **body.model_dump(),
@@ -54,7 +56,10 @@ def create(body: SearchInput, user=Depends(current_user), db: Session = Depends(
 
 @router.put("/saved-searches/{search_id}")
 def edit(
-    search_id: str, body: SearchInput, user=Depends(current_user), db: Session = Depends(get_db)
+    search_id: str,
+    body: SearchInput,
+    user=Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
 ):
     search = owned(db, SavedJobSearch, search_id, user.id)
     for k, v in body.model_dump().items():
@@ -67,13 +72,17 @@ def edit(
 
 
 @router.delete("/saved-searches/{search_id}")
-def remove(search_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def remove(
+    search_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     db.delete(owned(db, SavedJobSearch, search_id, user.id))
     return {"deleted": True}
 
 
 @router.post("/saved-searches/{search_id}/run", status_code=202)
-def run(search_id: str, user=Depends(current_user), db: Session = Depends(get_db)):
+def run(
+    search_id: str, user=Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
     search = db.scalar(
         select(SavedJobSearch)
         .where(SavedJobSearch.id == search_id, SavedJobSearch.user_id == user.id)
